@@ -37,3 +37,33 @@ target_compile_definitions(${PROJECT_NAME}
     PRIVATE
         YACW_BASE_DIR_LEN=${YACW_BASE_DIR_LEN}
 )
+
+# Shader files
+
+find_program(GLSLC_EXECUTABLE glslc REQUIRED)
+
+set(YACW_VERT_SHADER_SRC "${PROJECT_SOURCE_DIR}/src/shaders/shader.vert")
+set(YACW_FRAG_SHADER_SRC "${PROJECT_SOURCE_DIR}/src/shaders/shader.frag")
+
+set(YACW_VERT_SHADER_BIN ${PROJECT_BINARY_DIR}/shader.vert.spv)
+set(YACW_FRAG_SHADER_BIN ${PROJECT_BINARY_DIR}/shader.frag.spv)
+
+add_custom_command(
+    OUTPUT ${YACW_VERT_SHADER_BIN} ${YACW_FRAG_SHADER_BIN}
+    COMMAND ${GLSLC_EXECUTABLE} -o ${YACW_VERT_SHADER_BIN} ${YACW_VERT_SHADER_SRC}
+    COMMAND ${GLSLC_EXECUTABLE} -o ${YACW_FRAG_SHADER_BIN} ${YACW_FRAG_SHADER_SRC}
+    DEPENDS ${YACW_VERT_SHADER_SRC} ${YACW_FRAG_SHADER_SRC}
+    COMMENT "Compiling shaders"
+)
+
+add_custom_target(YacwCompileShaders
+    DEPENDS ${YACW_VERT_SHADER_BIN} ${YACW_FRAG_SHADER_BIN}
+)
+
+add_dependencies(${PROJECT_NAME} YacwCompileShaders)
+
+target_compile_definitions(${PROJECT_NAME}
+    PRIVATE
+        YACW_VERT_SHADER_PATH="${YACW_VERT_SHADER_BIN}"
+        YACW_FRAG_SHADER_PATH="${YACW_FRAG_SHADER_BIN}"
+)

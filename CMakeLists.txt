@@ -5,7 +5,7 @@ add_subdirectory(
     vendor/glfw
 )
 
-find_package(OpenGL REQUIRED)
+find_package(Vulkan REQUIRED)
 
 add_executable(${PROJECT_NAME} "")
 
@@ -13,7 +13,7 @@ set_target_properties(${PROJECT_NAME}
     PROPERTIES
         C_STANDARD 11
         C_STANDARD_REQUIRED ON
-        C_EXTENSIONS OFF
+        C_EXTENSIONS ON
 )
 
 target_sources(${PROJECT_NAME}
@@ -24,9 +24,16 @@ target_sources(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         glfw
-        OpenGL::GL
+        Vulkan::Vulkan
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE
     -Wall -Wextra -Wpedantic
+)
+
+get_filename_component(PROJECT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
+string(LENGTH "${PROJECT_SOURCE_DIR}/" YACW_BASE_DIR_LEN)
+target_compile_definitions(${PROJECT_NAME}
+    PRIVATE
+        YACW_BASE_DIR_LEN=${YACW_BASE_DIR_LEN}
 )

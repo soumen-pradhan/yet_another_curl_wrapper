@@ -17,6 +17,19 @@ set_target_properties(${PROJECT_NAME}
 )
 
 target_sources(${PROJECT_NAME}
+    PUBLIC
+        FILE_SET common
+        TYPE HEADERS
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+        FILES
+            src/include/log.h
+
+        FILE_SET nuklearHeaders
+        TYPE HEADERS
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/vendor/Nuklear
+        FILES
+            vendor/Nuklear/nuklear.h
+
     PRIVATE
         src/main.c
 )

@@ -1,34 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 
-static inline const char* curr_time(void)
-{
-    static char buffer[64];
-
-    struct timespec ts;
-    struct tm tm_info;
-
-    clock_gettime(CLOCK_REALTIME, &ts);
-    localtime_r(&ts.tv_sec, &tm_info);
-
-    snprintf(buffer, sizeof(buffer),
-        "%04d-%02d-%02d %02d:%02d:%02d.%03ld",
-        tm_info.tm_year + 1900,
-        tm_info.tm_mon + 1,
-        tm_info.tm_mday,
-        tm_info.tm_hour,
-        tm_info.tm_min,
-        tm_info.tm_sec,
-        ts.tv_nsec / 1000000);
-
-    return buffer;
-}
+#include "log.h"
 
 static inline uint32_t clamp_u32(uint32_t value, uint32_t min, uint32_t max)
 {
@@ -42,12 +20,6 @@ static inline uint32_t clamp_u32(uint32_t value, uint32_t min, uint32_t max)
 
     return value;
 }
-
-#define LOG_INFO(format, ...) \
-    fprintf(stdout, "[%23s] [%5s] %15s:%4d: " format "\n", curr_time(), "INFO", __FILE__ + YACW_BASE_DIR_LEN, __LINE__, ##__VA_ARGS__)
-
-#define LOG_ERROR(format, ...) \
-    fprintf(stderr, "[%23s] [%5s] %15s:%4d: " format "\n", curr_time(), "ERROR", __FILE__ + YACW_BASE_DIR_LEN, __LINE__, ##__VA_ARGS__)
 
 void error_callback(int error, const char* description)
 {

@@ -2,7 +2,6 @@
 #define LOG_H
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 
 static inline const char* curr_time(void)

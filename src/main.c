@@ -6,6 +6,9 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 
+#define NK_IMPLEMENTATION
+#include "nuklear.h"
+
 #include "log.h"
 
 static inline uint32_t clamp_u32(uint32_t value, uint32_t min, uint32_t max)
@@ -21,7 +24,7 @@ static inline uint32_t clamp_u32(uint32_t value, uint32_t min, uint32_t max)
     return value;
 }
 
-void error_callback(int error, const char* description)
+void glfw_error_callback(int error, const char* description)
 {
     LOG_ERROR("[%d] %s", error, description);
 }
@@ -77,7 +80,7 @@ int main(void)
 
     VkResult result;
 
-    glfwSetErrorCallback(error_callback);
+    glfwSetErrorCallback(glfw_error_callback);
 
     if (glfwInit() != GLFW_TRUE) {
         LOG_ERROR("Failed to initialize GLFW");
@@ -85,11 +88,6 @@ int main(void)
     LOG_INFO("GLFW initialized successfully");
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
-    // Add this hint for Wayland compatibility (if you want to force XWayland or native Wayland)
-    // For Wayland, GLFW will typically try to use Wayland natively if available.
-    // If you explicitly want X11 fallback on Wayland, you might set this:
-    // glfwWindowHint(GLFW_X11_PLATFORM, GLFW_PLATFORM_WAYLAND); // This is not standard; GLFW handles Wayland automatically.
 
     window = glfwCreateWindow(640, 480, "Hello Vulkan", NULL, NULL);
     if (window == NULL) {
@@ -113,6 +111,7 @@ int main(void)
         LOG_INFO("  - %s", glfwExtensions[i]);
     }
 
+    // Instance
     VkApplicationInfo appInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = VK_API_VERSION_1_2

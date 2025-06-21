@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,95 +57,84 @@ char* readFile(const char* filename, size_t* fileSize)
 
 int main(void)
 {
-    GLFWwindow* window;
-
-    VkInstance instance;
-    VkPhysicalDevice physicalDevice;
-    VkDevice device;
-    VkSurfaceKHR surface;
-
-    VkSwapchainKHR swapchain;
-    uint32_t swapChainImageCount = 0;
-    VkImage* swapchainImages = NULL;
-    VkImageView* swapchainImageViews = NULL;
-    VkRenderPass renderPass;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline pipeline;
-    VkFramebuffer* swapchainFramebuffers = NULL;
-    VkCommandPool commandPool;
-    VkCommandBuffer* commandBuffers = NULL;
-
-    VkSemaphore imageAvailableSemaphore;
-    VkSemaphore* renderFinishedSemaphore = NULL;
-    VkFence inFlightFence;
-
     VkResult result;
 
-    glfwSetErrorCallback(glfw_error_callback);
+    // Glfw setup
+    GLFWwindow* window = NULL;
+    {
+        glfwSetErrorCallback(glfw_error_callback);
 
-    if (glfwInit() != GLFW_TRUE) {
-        LOG_ERROR("Failed to initialize GLFW");
+        if (glfwInit() != GLFW_TRUE) {
+            LOG_ERROR("Failed to initialize GLFW");
+            goto cleanup_glfw;
+        }
+        LOG_INFO("GLFW initialized successfully");
+
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+        window = glfwCreateWindow(640, 480, "Hello Vulkan", NULL, NULL);
+        if (window == NULL) {
+            LOG_ERROR("Failed to create GLFW window");
+            goto cleanup_glfw;
+        }
+        LOG_INFO("GLFW window created successfully");
     }
-    LOG_INFO("GLFW initialized successfully");
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-    window = glfwCreateWindow(640, 480, "Hello Vulkan", NULL, NULL);
-    if (window == NULL) {
-        LOG_ERROR("Failed to create GLFW window");
-        goto cleanup_glfw;
-    }
-    LOG_INFO("GLFW window created successfully");
-
-    // Vulkan specific setup (minimal example, you'll expand this for a real Vulkan app)
-    unsigned int glfwExtensionCount = 0;
-    const char** glfwExtensions;
-
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    if (glfwExtensions == NULL) {
-        LOG_ERROR("Failed to get required Vulkan instance extensions from GLFW");
-        goto cleanup_window;
-    }
-
-    LOG_INFO("Number of required Vulkan instance extensions from GLFW: %u", glfwExtensionCount);
-    for (unsigned int i = 0; i < glfwExtensionCount; i++) {
-        LOG_INFO("  - %s", glfwExtensions[i]);
-    }
-
-    // Instance
-    VkApplicationInfo appInfo = {
-        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .apiVersion = VK_API_VERSION_1_2
-    };
 
     const char* enabledLayers[] = { "VK_LAYER_KHRONOS_validation" };
     uint32_t enabledLayerCount = sizeof(enabledLayers) / sizeof(enabledLayers[0]);
 
-    VkInstanceCreateInfo createInfo = {
-        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pApplicationInfo = &appInfo,
-        .enabledExtensionCount = glfwExtensionCount,
-        .ppEnabledExtensionNames = glfwExtensions,
-        .enabledLayerCount = enabledLayerCount,
-        .ppEnabledLayerNames = enabledLayers
-    };
+    // Instance
+    VkInstance instance = VK_NULL_HANDLE;
+    {
+        VkApplicationInfo appInfo = {
+            .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+            .apiVersion = VK_API_VERSION_1_2
+        };
 
-    result = vkCreateInstance(&createInfo, NULL, &instance);
-    if (result != VK_SUCCESS) {
-        LOG_ERROR("Failed to create Vulkan instance: %d", result);
-        goto cleanup_window;
+        uint32_t glfwExtensionCount = 0;
+        const char** glfwExtensions = NULL;
+
+        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        if (glfwExtensions == NULL) {
+            LOG_ERROR("Failed to get required Vulkan instance extensions from GLFW");
+            goto cleanup_window;
+        }
+
+        LOG_INFO("Number of required Vulkan instance extensions from GLFW: %u", glfwExtensionCount);
+        for (unsigned int i = 0; i < glfwExtensionCount; i++) {
+            LOG_INFO("  - %s", glfwExtensions[i]);
+        }
+
+        VkInstanceCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+            .pApplicationInfo = &appInfo,
+            .enabledExtensionCount = glfwExtensionCount,
+            .ppEnabledExtensionNames = glfwExtensions,
+            .enabledLayerCount = enabledLayerCount,
+            .ppEnabledLayerNames = enabledLayers
+        };
+
+        result = vkCreateInstance(&createInfo, NULL, &instance);
+        if (result != VK_SUCCESS) {
+            LOG_ERROR("Failed to create Vulkan instance: %d", result);
+            goto cleanup_window;
+        }
+        LOG_INFO("Vulkan instance created successfully");
     }
-    LOG_INFO("Vulkan instance created successfully");
 
     // Surface
-    result = glfwCreateWindowSurface(instance, window, NULL, &surface);
-    if (result != VK_SUCCESS) {
-        LOG_ERROR("Failed to create Vulkan surface: %d", result);
-        goto cleanup_instance;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    {
+        result = glfwCreateWindowSurface(instance, window, NULL, &surface);
+        if (result != VK_SUCCESS) {
+            LOG_ERROR("Failed to create Vulkan surface: %d", result);
+            goto cleanup_instance;
+        }
+        LOG_INFO("Vulkan surface created successfully");
     }
-    LOG_INFO("Vulkan surface created successfully");
 
     // Physical devices
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     {
         uint32_t deviceCount = 0;
         result = vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
@@ -161,8 +151,6 @@ int main(void)
             free(physicalDevices);
             goto cleanup_surface;
         }
-
-        physicalDevice = VK_NULL_HANDLE;
 
         VkPhysicalDeviceType preferredTypeOrder[] = {
             VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
@@ -205,7 +193,7 @@ int main(void)
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, NULL);
         if (queueFamilyCount == 0) {
             LOG_ERROR("No queue families found for the physical device");
-            goto cleanup_instance;
+            goto cleanup_surface;
         }
         LOG_INFO("Number of queue families available: %u", queueFamilyCount);
 
@@ -231,15 +219,15 @@ int main(void)
         if (queueFamilyIndex == -1 || presentSupport == VK_FALSE) {
             LOG_ERROR("No suitable queue family found for graphics operations");
             free(queueFamilies);
-            goto cleanup_instance;
+            goto cleanup_surface;
         }
 
         free(queueFamilies);
     }
 
-    // Logical device creation
+    // Logical device
+    VkDevice device = VK_NULL_HANDLE;
     {
-
         float queuePriority = 1.0f;
         VkDeviceQueueCreateInfo queueCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -269,12 +257,14 @@ int main(void)
         LOG_INFO("Vulkan logical device created successfully");
     }
 
-    // SwapChain
+    // Swapchain metadata
     VkSurfaceFormatKHR surfaceFormat = { 0 };
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR; // V-Sync
-    VkExtent2D swapchainExtent = { 0, 0 };
+    VkExtent2D swapchainExtent = { 0 };
     VkSurfaceTransformFlagBitsKHR swapChainTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR; // No transformation
+    uint32_t swapChainImageCount = 0;
     {
+        // surface format
         {
             uint32_t surfaceFormatCount = 0;
             result = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, NULL);
@@ -308,6 +298,7 @@ int main(void)
             free(surfaceFormats);
         }
 
+        // presentation mode
         {
             uint32_t surfacePresentModeCount = 0;
             result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &surfacePresentModeCount, NULL);
@@ -335,6 +326,7 @@ int main(void)
             free(surfacePresentModes);
         }
 
+        // swapchain count
         {
             VkSurfaceCapabilitiesKHR surfaceCapabilities;
             result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
@@ -365,7 +357,9 @@ int main(void)
         }
     }
 
-    // Create Swapchain
+    // Swapchain
+    VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+    VkImage* swapchainImages = NULL;
     {
         VkSwapchainCreateInfoKHR swapchainCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -405,12 +399,13 @@ int main(void)
         }
     }
 
-    // Image views creation
+    // Image views
+    VkImageView* swapchainImageViews = NULL;
     {
         swapchainImageViews = malloc(swapChainImageCount * sizeof(VkImageView));
         if (swapchainImageViews == NULL) {
             LOG_ERROR("Failed to allocate memory for swapchain image views");
-            goto cleanup_swapchain;
+            goto cleanup_swapchain_images;
         }
 
         for (uint32_t i = 0; i < swapChainImageCount; i++) {
@@ -430,13 +425,14 @@ int main(void)
             result = vkCreateImageView(device, &createInfo, NULL, &swapchainImageViews[i]);
             if (result != VK_SUCCESS) {
                 LOG_ERROR("Failed to create image view %u: %d", i, result);
-                goto cleanup_swapchain;
+                goto cleanup_swapchain_images;
             }
         }
         LOG_INFO("Swapchain image views created successfully");
     }
 
     // Render pass
+    VkRenderPass renderPass = VK_NULL_HANDLE;
     {
         VkAttachmentDescription colorAttachment = {
             .format = surfaceFormat.format,
@@ -482,12 +478,14 @@ int main(void)
         result = vkCreateRenderPass(device, &renderPassInfo, NULL, &renderPass);
         if (result != VK_SUCCESS) {
             LOG_ERROR("Failed to create render pass: %d", result);
-            goto cleanup_swapchain;
+            goto cleanup_swapchain_imageviews;
         }
         LOG_INFO("Render pass created successfully");
     }
 
     // Pipeline
+    VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+    VkPipeline pipeline = VK_NULL_HANDLE;
     {
         VkShaderModule vertShaderModule;
         VkShaderModule fragShaderModule;
@@ -681,6 +679,7 @@ int main(void)
     }
 
     // Framebuffers
+    VkFramebuffer* swapchainFramebuffers = NULL;
     {
         swapchainFramebuffers = malloc(swapChainImageCount * sizeof(VkFramebuffer));
         if (swapchainFramebuffers == NULL) {
@@ -711,6 +710,8 @@ int main(void)
     }
 
     // Command pool
+    VkCommandPool commandPool = VK_NULL_HANDLE;
+    VkCommandBuffer* commandBuffers = NULL;
     {
         VkCommandPoolCreateInfo commandPoolInfo = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -728,7 +729,6 @@ int main(void)
         commandBuffers = malloc(swapChainImageCount * sizeof(VkCommandBuffer));
         if (commandBuffers == NULL) {
             LOG_ERROR("Failed to allocate memory for command buffers");
-            vkDestroyCommandPool(device, commandPool, NULL);
             goto cleanup_command_pool;
         }
 
@@ -785,6 +785,9 @@ int main(void)
     }
 
     // Sync objects
+    VkSemaphore imageAvailableSemaphore = VK_NULL_HANDLE;
+    VkSemaphore* renderFinishedSemaphore = NULL;
+    VkFence inFlightFence = VK_NULL_HANDLE;
     {
         VkSemaphoreCreateInfo semaphoreInfo = {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
@@ -800,8 +803,7 @@ int main(void)
         renderFinishedSemaphore = malloc(swapChainImageCount * sizeof(VkSemaphore));
         if (renderFinishedSemaphore == NULL) {
             LOG_ERROR("Failed to allocate memory for render finished semaphores");
-            vkDestroySemaphore(device, imageAvailableSemaphore, NULL);
-            goto cleanup_command_buffers;
+            goto cleanup_img_avail_semaphore;
         }
 
         for (uint32_t i = 0; i < swapChainImageCount; i++) {
@@ -813,9 +815,7 @@ int main(void)
                     vkDestroySemaphore(device, renderFinishedSemaphore[j], NULL);
                 }
                 free(renderFinishedSemaphore);
-
-                vkDestroySemaphore(device, imageAvailableSemaphore, NULL);
-                goto cleanup_command_buffers;
+                goto cleanup_img_avail_semaphore;
             }
         }
         LOG_INFO("Render finished semaphore created successfully");
@@ -828,21 +828,14 @@ int main(void)
         result = vkCreateFence(device, &fenceInfo, NULL, &inFlightFence);
         if (result != VK_SUCCESS) {
             LOG_ERROR("Failed to create in-flight fence: %d", result);
-
-            for (uint32_t i = 0; i < swapChainImageCount; ++i) {
-                vkDestroySemaphore(device, renderFinishedSemaphore[i], NULL);
-            }
-            free(renderFinishedSemaphore);
-
-            vkDestroySemaphore(device, imageAvailableSemaphore, NULL);
-            goto cleanup_command_buffers;
+            goto cleanup_render_finished_semaphore;
         }
         LOG_INFO("In-flight fence created successfully");
 
         LOG_INFO("Synchronization objects created successfully");
     }
 
-    VkQueue graphicsQueue;
+    VkQueue graphicsQueue = VK_NULL_HANDLE;
     vkGetDeviceQueue(device, queueFamilyIndex, 0, &graphicsQueue);
     LOG_INFO("Graphics queue obtained");
 
@@ -901,16 +894,20 @@ int main(void)
 
     vkDeviceWaitIdle(device);
 
-cleanup_sync_objects:
+cleanup_fence:
     vkDestroyFence(device, inFlightFence, NULL);
+cleanup_render_finished_semaphore:
     for (uint32_t i = 0; i < swapChainImageCount; i++) {
         vkDestroySemaphore(device, renderFinishedSemaphore[i], NULL);
     }
     free(renderFinishedSemaphore);
+    renderFinishedSemaphore = NULL;
+cleanup_img_avail_semaphore:
     vkDestroySemaphore(device, imageAvailableSemaphore, NULL);
 cleanup_command_buffers:
     vkFreeCommandBuffers(device, commandPool, swapChainImageCount, commandBuffers);
     free(commandBuffers);
+    commandBuffers = NULL;
 cleanup_command_pool:
     vkDestroyCommandPool(device, commandPool, NULL);
 cleanup_framebuffers:
@@ -918,18 +915,24 @@ cleanup_framebuffers:
         vkDestroyFramebuffer(device, swapchainFramebuffers[i], NULL);
     }
     free(swapchainFramebuffers);
+    swapchainFramebuffers = NULL;
 cleanup_pipeline:
     vkDestroyPipeline(device, pipeline, NULL);
 cleanup_pipeline_layout:
     vkDestroyPipelineLayout(device, pipelineLayout, NULL);
 cleanup_renderpass:
     vkDestroyRenderPass(device, renderPass, NULL);
-cleanup_swapchain:
+cleanup_swapchain_imageviews:
     for (uint32_t i = 0; i < swapChainImageCount; i++) {
         vkDestroyImageView(device, swapchainImageViews[i], NULL);
     }
     free(swapchainImageViews);
+    swapchainImageViews = NULL;
+cleanup_swapchain_images:
+    // No need to call vkDestroyImage on each of these, they are destroyed by vkDestroySwapchainKHR
     free(swapchainImages);
+    swapchainImages = NULL;
+cleanup_swapchain:
     vkDestroySwapchainKHR(device, swapchain, NULL);
 cleanup_device:
     vkDestroyDevice(device, NULL);

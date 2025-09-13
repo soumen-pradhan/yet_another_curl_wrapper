@@ -11,7 +11,7 @@ add_executable(${PROJECT_NAME} "")
 
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
-        C_STANDARD 11
+        C_STANDARD 17
         C_STANDARD_REQUIRED ON
         C_EXTENSIONS ON
 )
@@ -23,6 +23,7 @@ target_sources(${PROJECT_NAME}
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src/include
         FILES
             src/include/log.h
+            src/include/app.h
 
         FILE_SET nuklearHeaders
         TYPE HEADERS
@@ -32,6 +33,7 @@ target_sources(${PROJECT_NAME}
 
     PRIVATE
         src/main.c
+        src/app.c
 )
 
 target_link_libraries(${PROJECT_NAME}
